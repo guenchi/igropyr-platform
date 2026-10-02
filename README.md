@@ -16,13 +16,29 @@ platform-os                     ; 'macos | 'linux | 'freebsd | 'unsupported
 platform-arch                   ; 'x86_64 | 'arm64 | 'unsupported
 (ensure-supported-platform!)    ; raise unless the host is supported
 (load-first-shared-object! who candidates)  ; load the first name that works
+homebrew-prefixes               ; ("/opt/homebrew" "/usr/local")
+(shared-object-candidates base [os])  ; libcrypto/libssl names, this host or os
+(libuv-candidates os)           ; libuv names for 'macos, 'freebsd or 'linux
+(quickjs-candidates os)         ; QuickJS names, every libqjs before libquickjs
 addrinfo-address-offset  addrinfo-next-offset   ; struct addrinfo (getaddrinfo)
 uv-stat-mode-offset      uv-stat-size-offset     ; libuv uv_stat_t
 ```
 
 `load-first-shared-object!` tries each candidate name in order and
 returns the one that loaded, or raises through `who` naming every
-candidate when none can be found. The offset constants encode the LP64
+candidate when none can be found.
+
+The candidate lists are pure functions of the OS, so a program (or a
+test) can read any OS's list on any machine; `shared-object-candidates`
+with one argument answers for this host. On macOS every list names both
+Homebrew prefixes: Homebrew installs under `/opt/homebrew` on Apple
+silicon and under `/usr/local` on x86_64, and a bare library name is not
+enough — on an x86_64 macOS 15 host with libuv installed under
+`/usr/local`, a list naming only `/opt/homebrew` failed to load it. The
+two prefixes are written once, in `homebrew-prefixes`, and every macOS
+list is built from it.
+
+The offset constants encode the LP64
 `struct addrinfo` layout differences between BSD (macOS/FreeBSD) and
 Linux, and libuv's platform-independent `uv_stat_t`.
 
